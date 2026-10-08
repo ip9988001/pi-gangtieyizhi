@@ -41,11 +41,16 @@ deepseek_model = deepseek-chat
 ① GLM（思考开）        ← 第二区 glm_api_key
 ② GLM（思考关）        ← 防推理吃光 max_tokens 导致正文为空
 ③ DeepSeek             ← 第二区 deepseek_api_key
-④ pi 驱动模型密钥直连  ← 第一区 driver_api_key（自动从 pi 底座抄来）
-⑤ pi 底座进程（pi -p） ← 终极兜底，不需要任何 key
+④ pi 驱动模型密钥直连  ← 第一区 driver_api_key（框架自动从 pi 底座抄来）
+⑤ pi 底座进程（pi -p） ← 终极兜底，连 pi 的 key 都不需要，只要 pi 能跑
 ```
 
-**四级都不需要人工配置 → 本文件全空也能跑。**
+**五级全部不需要人工配置 → 本文件整份留空也能跑。**
+
+补充说明第四级：
+- pi 里声明的模型名往往是别名（如 `deepseek-flash`），原厂 API 不认
+- 框架会自动回退到 provider 标准名（`deepseek-chat`）试一次
+- **成功后把可用名写回第一区的 `driver_http_model`**，下次一次到位（实测 0.9 秒）
 
 ## 四、pi 底座驱动模型的 key 存在哪（框架自动读取的来源）
 
