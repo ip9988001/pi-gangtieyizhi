@@ -161,7 +161,9 @@ def _llm_via_pi(messages, timeout=600, provider=None, model=None):
         r = m.get("role") if isinstance(m, dict) else getattr(m, "role", "user")
         (sys_parts if r == "system" else body).append(str(c))
 
-    cmd = [exe, "-p", "\n\n".join(body)]
+    # 用一个"裸 pi"跑：不加载扩展/技能/模板、不写会话 —— 更快、输出更干净，
+    # 也避免钢铁意志扩展在这一次调用里被重复加载。
+    cmd = [exe, "-p", "-ne", "-ns", "-np", "--no-session", "\n\n".join(body)]
     if provider:
         cmd += ["--provider", provider]
     if model:
