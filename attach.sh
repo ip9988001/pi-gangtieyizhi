@@ -206,7 +206,7 @@ else warn "非 systemd 环境，跳过服务安装；可手工运行 $AG/bin/l1_
 say "9/9 验证（含 pi 底座预热）"
 if [ "$NONINTERACTIVE" = "1" ] || true; then
   echo "  预热 pi 底座（首次运行会拉取技能包，可能较慢）..."
-  if timeout 300 pi -p "回复两个字：就绪" >/dev/null 2>&1; then ok "pi 底座可用（第四级兜底就位）"
+  if timeout 600 pi -p "回复两个字：就绪" >/dev/null 2>&1; then ok "pi 底座可用（第四级兜底就位）"
   else warn "pi 底座预热失败 —— 第四级兜底不可用，请先手工确认 \`pi -p \"hi\"\` 能跑通"; fi
 fi
 echo "  pi 底座      : $PI_VER"
