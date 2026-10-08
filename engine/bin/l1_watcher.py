@@ -171,6 +171,18 @@ def _llm_via_pi(messages, timeout=600, provider=None, model=None):
 
     env = dict(os.environ)
     env.setdefault("RTK_DISABLED", "1")
+    # pi 的托管 node 不在系统 PATH 上；若当前 PATH 里没有 node，就把 pi 自带的
+    # node 目录补进去，否则 pi 的 shebang（#!/usr/bin/env node）会以 127 退出。
+    import shutil as _sh
+    if not _sh.which("node"):
+        for cand in (
+            Path(os.environ.get("XDG_DATA_HOME", str(HOME / ".local" / "share"))) / "pi-node" / "current" / "bin",
+            Path(exe).resolve().parent.parent / "install" / "node" / "current" / "bin",
+            Path("/usr/local/bin"), Path("/usr/bin"),
+        ):
+            if (cand / "node").exists():
+                env["PATH"] = str(cand) + os.pathsep + env.get("PATH", "")
+                break
     r = subprocess.run(cmd, capture_output=True, text=True,
                        timeout=timeout, env=env, cwd=str(HOME))
     if r.returncode != 0:

@@ -58,7 +58,7 @@ pi-gangtieyizhi/
 ├── extensions/            # 22 个启用的 steel-will-* 扩展
 ├── extensions-disabled/   # 15 个已停用扩展（保留可秒恢复）
 ├── skills/                # PI-技能库（33 个技能）
-├── constitution/          # AGENTS.md / SYSTEM.md / 0-AGENTS / protocols（16 份协议）/ goals-template
+├── constitution/          # AGENTS.md / SYSTEM.md / 0-AGENTS / protocols（108 份协议文档）/ goals-template
 ├── engine/                # bin/（l1_watcher.py 等）services/ scripts/ aux/ pi-extensions/
 ├── config/                # settings / l1_watcher.config.example / mcp-adapter / package.json
 ├── memory-template/       # 空记忆骨架 + 协议文档
