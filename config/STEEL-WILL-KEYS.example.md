@@ -12,15 +12,17 @@
 
 <!-- AUTO-START -->
 ```keys
-driver_provider = deepseek
-driver_model = deepseek-flash
-driver_http_model = deepseek-chat
-driver_base_url = https://api.deepseek.com/v1
-driver_api_key = 
+driver_provider =
+driver_model =
+driver_http_model =
+driver_base_url =
+driver_api_key =
 driver_key_type = api_key
-auto_filled_at = 2026-10-08 23:57:09
+auto_filled_at =
 ```
 <!-- AUTO-END -->
+
+> 上面整段由框架自动填写，首次运行 `attach.sh` 或 `l1_watcher.py --sync-key` 时自动补齐。
 
 ## 二、手工区（框架自有线路，按需填写）
 

@@ -213,7 +213,8 @@ DRIVER_PROVIDER = _KEYS_MD.get("driver_provider") or ""
 DRIVER_HTTP_MODEL = _KEYS_MD.get("driver_http_model") or ""
 
 # 第二区两项都空 -> 自动从 pi 底座登记驱动模型密钥
-if not GLM_API_KEY and not DS_API_KEY and not DRIVER_API_KEY:
+# （--sync-key 模式下由 CLI 分支显式跑一次，避免重复登记/重复打印）
+if not GLM_API_KEY and not DS_API_KEY and not DRIVER_API_KEY and "--sync-key" not in os.sys.argv:
     sync_driver_key(quiet=False)
     DRIVER_API_KEY  = _KEYS_MD.get("driver_api_key")  or ""
     DRIVER_BASE_URL = _KEYS_MD.get("driver_base_url") or ""
@@ -1443,11 +1444,16 @@ def main():
     # === 密钥汇总表同步（--sync-key）：把 pi 驱动模型的 key 登记进第一区 ===
     if a.sync_key:
         ok = sync_driver_key(force=True, quiet=False)
-        print(f"[密钥表] {'同步完成' if ok else '同步失败：pi 底座无可用驱动模型 key'}")
-        print(f"[密钥表] {KEYS_MD_FILE}")
-        for k in ("driver_provider", "driver_model", "driver_http_model", "driver_base_url", "auto_filled_at"):
-            print(f"  {k} = {_KEYS_MD.get(k, '')}")
-        print(f"  driver_api_key = {'已登记(' + str(len(_KEYS_MD.get('driver_api_key',''))) + ' 字符)' if _KEYS_MD.get('driver_api_key') else '未登记'}")
+        if ok:
+            print("[密钥表] 同步完成")
+            print(f"[密钥表] {KEYS_MD_FILE}")
+            for k in ("driver_provider", "driver_model", "driver_http_model", "driver_base_url", "auto_filled_at"):
+                print(f"  {k} = {_KEYS_MD.get(k, '')}")
+            print(f"  driver_api_key = 已登记({len(_KEYS_MD.get('driver_api_key',''))} 字符)")
+        else:
+            print("[密钥表] 同步失败：pi 底座无可用驱动模型 key")
+            print("  修法：跑一次 `pi` 完成登录/配置 provider，或往第二区填 GLM/DeepSeek key，再重跑本命令")
+            print("[密钥表] 不影响框架运行，仅第四/五级兜底暂不可用")
         return
 
     # === 每日精炼（仅一次） ===

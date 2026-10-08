@@ -49,6 +49,29 @@ if need node; then ok "node: $(node -v)"; else
   if [ -x "$PN/node" ]; then export PATH="$PN:$PATH"; ok "node（pi 自带）: $(node -v)"
   else warn "未找到 node，向量化/向量库将不可用"; fi
 fi
+# ---- 模型可用性预检：五级兜底至少需要一条线路，无模型则提前说清 ----
+$PY - "$AG/settings.json" "$AG/auth.json" <<'PY'
+import json,sys
+try:
+    st=json.load(open(sys.argv[1],encoding="utf-8"))
+    prov=st.get("defaultProvider") or ""; model=st.get("defaultModel") or ""
+except Exception:
+    prov=model=""
+keys=[]
+try:
+    au=json.load(open(sys.argv[2],encoding="utf-8"))
+    keys=[p for p,e in au.items() if isinstance(e,dict) and (e.get("key") or e.get("apiKey"))]
+except Exception:
+    pass
+if keys:
+    print("\033[1;32m[\u2713]\033[0m pi 驱动模型: %s / %s（key 可用，第四级兜底就位）" % (prov or "?", model or "?"))
+else:
+    print("\033[1;33m[!] pi 底座尚未配置可用模型 —— 五级兜底会全部断线")
+    print("    框架本体照样装好，但记忆提炼不会动。修法（任选其一，再重跑本脚本）：")
+    print("      ① 运行 `pi` 完成一次登录/配置 provider（最省事）")
+    print("      ② 编辑 %s 第二区，填 GLM 或 DeepSeek key" % sys.argv[1].replace("settings.json","STEEL-WILL-KEYS.md"))
+    print("    配好后跑: python3 %s/bin/l1_watcher.py --sync-key" % sys.argv[1].rsplit("/",1)[0])
+PY
 
 # ---------- 1. 依赖扫描与自动安装 ----------
 say "1/9 依赖扫描与自动安装"
@@ -207,7 +230,12 @@ say "9/9 验证（含 pi 底座预热）"
 if [ "$NONINTERACTIVE" = "1" ] || true; then
   echo "  预热 pi 底座（首次运行会拉取技能包，可能较慢）..."
   if timeout 600 pi -p "回复两个字：就绪" >/dev/null 2>&1; then ok "pi 底座可用（第四级兜底就位）"
-  else warn "pi 底座预热失败 —— 第四级兜底不可用，请先手工确认 \`pi -p \"hi\"\` 能跑通"; fi
+  else
+    warn "pi 底座预热失败 —— 第四、五级兜底暂不可用（其余已全部装好）"
+    echo "    点亮兜底链：先跑一次 \`pi\` 完成登录/配置，然后执行"
+    echo "      python3 $AG/bin/l1_watcher.py --sync-key"
+    echo "    或直接编辑 $AG/STEEL-WILL-KEYS.md 第二区填入 GLM / DeepSeek key"
+  fi
 fi
 echo "  pi 底座      : $PI_VER"
 echo "  扩展         : $(ls "$AG/extensions"/*.ts 2>/dev/null | wc -l) 个启用 / $(ls "$AG/extensions-disabled"/*.ts 2>/dev/null | wc -l) 个停用"
