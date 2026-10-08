@@ -1,102 +1,154 @@
-# 钢铁意志 · PI 版 —— 依赖总清单
+# 钢铁意志 · PI 版 —— 依赖总清单（**裸机假设**）
 
-> 核验日期 2026-10-08。`attach.sh` 按本表自动安装。
+> 核验日期 2026-10-08。
+> **本表按「目标机器什么都没装」编写** —— 不因为开发机上装了就不统计。
+> `deps.sh` 按本表自动扫描 + 自动安装；`attach.sh` 第 1 步调用它。
 
-## 一、由 pi 底座自带（**不用装，不要装**）
+## 〇、一句话结论
 
-pi 的托管安装会在 `~/.pi/agent/install/releases/<版本>/node_modules/` 里提供这些，
-扩展直接 `import` 即可：
-
-| 包 | 用途 | 谁在用 |
+| 层 | 裸机上需要什么 | 谁能装 |
 |---|---|---|
-| `@earendil-works/pi-coding-agent` | **pi 扩展 SDK**（扩展的宿主 API） | 15 个扩展 import 它 |
-| `typebox` | 工具参数 JSON Schema 定义 | 8 个扩展 |
-| `jiti` | TS 运行时加载（`test-extensions.mjs` 用） | 引擎自检脚本 |
-| Node.js 运行时 | 由 pi 托管安装在 `$XDG_DATA_HOME/pi-node/current/bin` | 全体 |
+| 系统包 | python3 / curl / wget / git / ca-certificates / unzip / tar / gzip / jq / rsync / gcc | `deps.sh install`（按发行版自动选包名） |
+| Node | node ≥ 20（**pi 安装器通常自带**） | pi 自带或 `deps.sh` 提示 |
+| Python 包 | **核心 0 个**（引擎纯标准库） | —— |
+| Node 包 | `@xenova/transformers` `vectra` `pi-mcp-adapter` | `npm install`（走镜像） |
+| pi 自带包 | `@earendil-works/pi-coding-agent` `typebox` `jiti` | **不用装** |
+| 外部二进制 | 全部**可选**，只为额外技能服务 | `deps.sh install --with-optional` |
 
-> 本机已核实：`install/releases/0.99.1/node_modules/` 下 `typebox`、`@earendil-works/pi-coding-agent`、`jiti` 均存在。
-> **它们在 `~/.pi/agent/node_modules/` 里找不到是正常的**，不要重复安装。
+---
 
-## 二、框架自己声明的 npm 依赖（**必须装**）
+## 一、系统层（按发行版自动映射包名）
 
-写在 `config/package.json`，`attach.sh` 执行 `npm install` 即装：
+| 能力 | Debian/Ubuntu | RHEL/CentOS/Fedora | Alpine | Arch |
+|---|---|---|---|---|
+| Python 3 | `python3` | `python3` | `python3` | `python3` |
+| pip | `python3-pip` | `python3-pip` | `py3-pip` | `python-pip` |
+| venv | `python3-venv` | `python3-virtualenv` | （内置） | （内置） |
+| HTTP | `curl` `wget` | 同 | 同 | 同 |
+| Git | `git` | `git` | `git` | `git` |
+| 证书 | `ca-certificates` | `ca-certificates` | `ca-certificates` | `ca-certificates` |
+| 压缩 | `unzip` `tar` `gzip` | 同 | 同 | 同 |
+| JSON | `jq` | `jq` | `jq` | `jq` |
+| 同步 | `rsync` | `rsync` | `rsync` | `rsync` |
+| 编译 | `build-essential` | `gcc-c++ make` | `build-base` | `base-devel` |
+| 时区 | `tzdata` | `tzdata` | `tzdata` | `tzdata` |
+
+**`deps.sh` 能自动识别的包管理器**：`apt` / `dnf` / `yum` / `apk` / `pacman` / `zypper` / `brew`（macOS）
+通过 `/etc/os-release` 的 `ID` 判断，`uname -m` 判断架构。
+
+---
+
+## 二、Python 层
+
+| 文件 | 第三方依赖 | 说明 |
+|---|---|---|
+| `engine/bin/l1_watcher.py` | **无（纯标准库）** ✅ | 会话采集 + 记忆提炼，核心中的核心 |
+| `engine/scripts/refresh_skill_catalog.py` | 无 ✅ | |
+| `engine/scripts/voice-server.py` | 无（标准库 socketserver）✅ | |
+| `engine/aux/sync_daemon.py` | 无 ✅ | |
+
+**可选 Python 包**
+
+| 包 | 谁需要 | 装法 |
+|---|---|---|
+| `edge-tts` | 语音技能 | `pip install edge-tts` |
+| `pillow` `numpy` `imageio` | slack-gif-creator 技能 | `--with-optional` |
+| `pypdf` `pdfplumber` `pdf2image` | pdf 技能 | `--with-optional` |
+| `openpyxl` `lxml` `defusedxml` | xlsx / docx / pptx 技能 | `--with-optional` |
+| `pyyaml` | skill-creator | `--with-optional` |
+| `playwright` | webapp-testing | `--with-optional` + `playwright install` |
+
+---
+
+## 三、Node 层
+
+**框架自己声明**（`config/package.json`，`npm install` 装）：
 
 | 包 | 版本 | 用途 |
 |---|---|---|
-| `@xenova/transformers` | `^2.17.2` | 本地向量化（语义检索） |
+| `@xenova/transformers` | `^2.17.2` | 本地向量化 |
 | `vectra` | `^0.15.0` | 本地向量库 |
-| `pi-mcp-adapter` | `^2.10.0` | MCP 服务器适配（可选，要 MCP 才需要） |
+| `pi-mcp-adapter` | `^2.10.0` | MCP 适配（可选） |
 
-**传递依赖**（由上面带出，需允许安装脚本）：`sharp@0.32.6`、`protobufjs@6/7/8`
+传递依赖需允许安装脚本：`sharp@0.32.6`、`protobufjs@6/7/8`（已写在 `allowScripts`）
 
-```json
-"allowScripts": { "sharp@0.32.6": true, "protobufjs@7.6.6": true, "protobufjs@6.11.6": true, "protobufjs@8.8.0": true }
+**pi 底座自带（在 `~/.pi/agent/install/releases/<版本>/node_modules/`，**不要重复装**）**：
+`@earendil-works/pi-coding-agent`（15 个扩展 import）· `typebox`（8 个扩展）· `jiti`（引擎自检）
+
+**Node 运行时**：pi 托管安装自带，位于 `$XDG_DATA_HOME/pi-node/current/bin`，**不在系统 PATH 上**。
+`l1_watcher._llm_via_pi()` 与 `deps.sh` 都会自动把它补进 PATH。
+
+---
+
+## 四、外部二进制（全部可选）
+
+| 工具 | 谁需要 | 官方源 | 国内镜像 |
+|---|---|---|---|
+| `rtk` | Shell 输出压缩 | GitHub release | `ghfast.top` / `gh-proxy.com` / `ghproxy.net` 前缀加速 |
+| `lightpanda` | JS 执行引擎 | GitHub release | 同上 |
+| `lean-ctx` | 上下文压缩 | `npm i -g lean-ctx-bin` | `registry.npmmirror.com` |
+| `ast-grep` | 结构搜索 | `npm i -g @ast-grep/cli` | `registry.npmmirror.com` |
+| `scrapling` / `scrapling-mcp` | 网页抓取 | PyPI | 清华 / 阿里 / 腾讯 PyPI |
+| `yt-dlp` / `tvly` / `bili` | 杂项 | PyPI | 同上 |
+| `agent-reach` | 13 平台内容获取 | 其仓库 | GitHub 加速前缀 |
+| `playwright` 浏览器 | 浏览器自动化 | CDN | `PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright` |
+| `fd` | 文件查找 | apt/dnf | 系统镜像源 |
+
+---
+
+## 五、★ 双下载源表（官方 + 国内镜像）
+
+`deps.sh` 会**先探测连通性再选源**：优先国内镜像，不通则回落官方。
+
+| 生态 | 官方源 | 国内镜像（按优先顺序） |
+|---|---|---|
+| **PyPI** | `https://pypi.org/simple` | ① `https://pypi.tuna.tsinghua.edu.cn/simple`（清华）<br>② `https://mirrors.aliyun.com/pypi/simple`（阿里）<br>③ `https://mirrors.cloud.tencent.com/pypi/simple`（腾讯） |
+| **npm** | `https://registry.npmjs.org` | ① `https://registry.npmmirror.com`（阿里）<br>② `https://mirrors.cloud.tencent.com/npm` |
+| **apt** | 发行版官方 | ① `https://mirrors.tuna.tsinghua.edu.cn`（清华）<br>② `https://mirrors.aliyun.com`（阿里）<br>③ `https://mirrors.ustc.edu.cn`（中科大） |
+| **GitHub 资源** | `https://github.com` | ① `https://ghfast.top`<br>② `https://gh-proxy.com`<br>③ `https://ghproxy.net`（均为前缀式：`<镜像>/https://github.com/...`） |
+| **Node 发行版** | nodejs.org | `https://npmmirror.com/mirrors/node` |
+| **Playwright 浏览器** | Microsoft CDN | `https://npmmirror.com/mirrors/playwright` |
+| **Docker 镜像** | Docker Hub | 阿里云 / 腾讯云容器镜像（本项目不需要） |
+
+**默认行为**：一次安装只用 per-command 参数（`pip -i`、`npm --registry`），**不改写系统全局配置**。
+需要固化到全局时：`bash deps.sh mirrors --apply-global`
+（会写 `~/.config/pip/pip.conf` 与 `npm config set registry`；**apt 源不自动改写**，风险高）
+
+---
+
+## 六、`deps.sh` 命令
+
+```bash
+bash deps.sh scan                        # 只扫描：环境/命令/py包/node包/二进制/框架自检
+bash deps.sh install                     # 装缺失的核心依赖
+bash deps.sh install --with-optional     # 连可选技能依赖一起装
+bash deps.sh mirrors                     # 打印本机选定的镜像源
+bash deps.sh mirrors --apply-global      # 固化镜像到 pip/npm 全局配置
 ```
 
-## 三、Python 依赖
+**scan 输出分 6 段**：环境 / 命令依赖 / Node·npm / Python 包 / Node 包 / 可选外部二进制 / 框架自检。
+每项标 `✓ 已装`、`! 缺失（可选）`、`✗ 缺失（必需）`。
 
-| 文件 | 第三方依赖 |
-|---|---|
-| `engine/bin/l1_watcher.py` | **纯标准库，零依赖** ✅ |
-| `engine/scripts/refresh_skill_catalog.py` | 纯标准库 ✅ |
-| `engine/scripts/voice-server.py` | 标准库 `socketserver` ✅ |
-| `engine/aux/sync_daemon.py` | 纯标准库 ✅ |
+---
 
-**结论：引擎层不需要 pip 装任何东西。** 只有 Python 3.8+ 本身。
-（可选：`pip install edge-tts` —— 语音技能用，非核心）
+## 七、第四/五级兜底的前置条件
 
-## 四、系统命令
+提炼引擎第五级走 `pi -p`，需要：
 
-**必需**：`node` `npm` `python3`(≥3.8) `bash` `systemctl`
+1. `pi` 可执行文件在 PATH 或 `~/.pi/agent/bin/pi`
+2. **`node` 可用** —— pi 托管 node 在 `$XDG_DATA_HOME/pi-node/current/bin`，**不在系统 PATH**；
+   `_llm_via_pi()` 已自动补 PATH（否则 `pi` 以 127 退出，报 `/usr/bin/env: 'node': No such file`）
+3. pi 底座自身可用（首次 `pi -p` 会拉技能包，需要网络）
+4. pi 已配好基础 provider
 
-**可选（缺了只是少个能力，不阻塞）**：
-`git` `curl` `jq` `rsync` `socat` `nginx` `certbot`
-
-## 五、按需的外部二进制（不属于框架，技能才用）
-
-| 工具 | 谁需要 | 装法 |
-|---|---|---|
-| `rtk` | Shell 输出压缩 | GitHub release 单文件 → `/usr/local/bin` |
-| `lean-ctx` | 上下文压缩 | `npm i -g lean-ctx-bin` |
-| `lightpanda` | JS 执行引擎 | 官方 release |
-| `scrapling` / `scrapling-mcp` | 网页抓取 MCP | `pip install "scrapling[all]"`（落在 `~/.local/bin`） |
-| `agent-reach` | 13 平台内容获取 | 其仓库安装脚本 |
-| `ast-grep` | 结构搜索 | `npm i -g @ast-grep/cli` |
-| `playwright` | 浏览器自动化 | `pip install playwright && playwright install` |
-| `tvly` / `yt-dlp` / `fd` / `jq` | 杂项 | pip / apt |
-
-## 六、目录骨架（attach.sh 自动创建）
+## 八、目录骨架（attach.sh 自动创建）
 
 ```
 ~/.pi/agent/
-├── AGENTS.md              # 宪法（会备份原文件）
-├── SYSTEM.md
-├── 0-AGENTS/              # 技能目录 / 命令速查 / 写入规范
-├── extensions/            # 22 个扩展
-├── extensions-disabled/   # 15 个停用扩展
-├── PI-技能库/             # 33 个技能
-├── bin/                   # l1_watcher.py / recall.sh / pi-launcher
-├── services/              # 语义检索服务
-├── scripts/               # 向量化 / 技能目录刷新 / 语音
-├── assets/registry.json
-├── l1_watcher.config.json # key 配置（600）
-└── memory/                # 记忆骨架
-    ├── l1/  wiki/  wiki_candidates/pending/  agent/  candidates/
-    ├── system/  goals/  stages/  reflections/  archive/protocols/
+├── AGENTS.md  SYSTEM.md  0-AGENTS/
+├── extensions/（22）  extensions-disabled/（15）  PI-技能库/（33）
+├── bin/  services/  scripts/  assets/  .pi/extensions/rtk.ts
+├── STEEL-WILL-KEYS.md          # 密钥汇总表（600）
+├── l1_watcher.config.json      # 兼容配置（600）
+└── memory/{l1,wiki,wiki_candidates/pending,agent,candidates,system,goals,stages,reflections,archive/protocols}
 ```
-
-## 七、第四级兜底（pi 底座驱动模型）的前置条件
-
-`call_llm_refine()` 的第四级走 `pi -p`，它需要：
-
-1. **`pi` 可执行文件在 PATH 上**，或存在于 `~/.pi/agent/bin/pi`
-2. **`node` 可用** —— pi 托管安装的 node 在 `$XDG_DATA_HOME/pi-node/current/bin`
-   **不在系统 PATH 上**。`_llm_via_pi()` 已自动补 PATH，无需人工干预。
-   （这是实测踩到的坑：node 不在 PATH 时 `pi` 会以 127 退出，报
-   `/usr/bin/env: 'node': No such file or directory`）
-3. **pi 底座自身可用** —— 首次 `pi -p` 会拉取 settings.json 里声明的技能包
-   （anthropics/skills、badlogic/pi-skills），需要网络。`attach.sh` 第 8 步会做一次预热自检。
-4. **pi 已配好基础 provider** —— 第四级用的是 pi 当前 `settings.json` 的
-   `defaultProvider` / `defaultModel`。底座没配 provider 时这一级也无效。
-
-> 实测：本机（provider=deepseek）第四级 `pi -p` 一次调用 **3.0 秒**返回，可用。

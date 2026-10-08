@@ -33,7 +33,7 @@ ask(){ # $1=提示 $2=变量名 $3=默认值
 }
 
 # ---------- 0. 前置检查 ----------
-say "0/8 前置检查"
+say "0/9 前置检查"
 if ! need pi; then
   err "未找到 pi。请先安装 pi-Agent 底座，再运行本脚本。"
   err "（pi 装好后 \$HOME/.pi/agent 会被创建，本脚本才能接入）"
@@ -50,8 +50,17 @@ if need node; then ok "node: $(node -v)"; else
   else warn "未找到 node，向量化/向量库将不可用"; fi
 fi
 
-# ---------- 1. 备份已有配置 ----------
-say "1/8 备份已有配置"
+# ---------- 1. 依赖扫描与自动安装 ----------
+say "1/9 依赖扫描与自动安装"
+if [ -f "$SRC/deps.sh" ]; then
+  bash "$SRC/deps.sh" scan
+  echo
+  if [ "$WITH_OPT" = "1" ]; then bash "$SRC/deps.sh" install --with-optional
+  else bash "$SRC/deps.sh" install; fi
+else warn "未找到 deps.sh，跳过依赖安装"; fi
+
+# ---------- 2. 备份已有配置 ----------
+say "2/9 备份已有配置"
 BK="$HOME/.pi/agent-attach-backup-$(date +%Y%m%d-%H%M%S)"
 for f in AGENTS.md SYSTEM.md l1_watcher.config.json settings.json; do
   [ -e "$AG/$f" ] && { mkdir -p "$BK"; cp -a "$AG/$f" "$BK/" 2>/dev/null; }
@@ -59,7 +68,7 @@ done
 [ -d "$BK" ] && ok "已备份到 $BK" || ok "无既有配置需备份"
 
 # ---------- 2. 装框架文件 ----------
-say "2/8 安装框架文件"
+say "3/9 安装框架文件"
 inst(){ # src dst
   [ -e "$1" ] || return 0
   mkdir -p "$(dirname "$2")"
@@ -91,7 +100,7 @@ chmod +x "$AG/bin/"* 2>/dev/null
 ok "引擎层已就位（l1_watcher.py / recall.sh / 语义检索 / 脚本）"
 
 # ---------- 3. 记忆骨架（已存在则不碰） ----------
-say "3/8 建立记忆骨架"
+say "4/9 建立记忆骨架"
 for d in l1 wiki wiki_candidates/pending agent candidates candidates/agent candidates/user \
          system goals stages reflections archive/protocols adjudication governance user; do
   mkdir -p "$AG/memory/$d"
@@ -111,7 +120,7 @@ done
 ok "目标定义模板就绪"
 
 # ---------- 4. key 配置 ----------
-say "4/8 配置 key（全部可跳过）"
+say "5/9 配置 key（全部可跳过）"
 echo "  提炼引擎支持四级容灾：GLM → DeepSeek → pi 底座驱动模型"
 echo "  也就是说：两个 key 都不填，也能正常跑（自动用 pi 当前配置的模型兜底）"
 ask "智谱 GLM API Key（提炼主模型，可跳过）" GLM_API_KEY
@@ -152,7 +161,7 @@ if [ -e "$AG/bin/l1_watcher.py" ]; then
 fi
 
 # ---------- 5. settings / MCP ----------
-say "5/8 注册 settings 与 MCP"
+say "6/9 注册 settings 与 MCP"
 $PY - "$AG/settings.json" "$SRC/config" <<'PY'
 import json,sys,os
 sp,cd=sys.argv[1],sys.argv[2]
@@ -173,7 +182,7 @@ if [ -e "$SRC/config/mcp-adapter.json" ] && [ ! -e "$AG/mcp-adapter.json" ]; the
 fi
 
 # ---------- 6. npm 依赖 ----------
-say "6/8 安装 npm 依赖"
+say "7/9 补齐 npm 依赖（deps.sh 已装则为空操作）"
 [ -e "$AG/package.json" ] || cp -f "$SRC/config/package.json" "$AG/package.json" 2>/dev/null
 if need npm; then
   ( cd "$AG" && npm install --no-audit --no-fund ) && ok "npm 依赖安装完成" || warn "npm install 失败，请手工在 $AG 执行"
@@ -184,7 +193,7 @@ if need npm; then
 else warn "无 npm，跳过"; fi
 
 # ---------- 7. systemd ----------
-say "7/8 安装服务与定时器"
+say "8/9 安装服务与定时器"
 SUDO=""; [ "$(id -u)" = "0" ] || SUDO="sudo"
 if [ -d "/etc/systemd/system" ] && need systemctl; then
   $SUDO cp -f "$SRC/systemd/l1-watcher.service" "$SRC/systemd/l1-refine.service" "$SRC/systemd/l1-refine.timer" /etc/systemd/system/ 2>/dev/null
@@ -194,7 +203,7 @@ if [ -d "/etc/systemd/system" ] && need systemctl; then
 else warn "非 systemd 环境，跳过服务安装；可手工运行 $AG/bin/l1_watcher.py"; fi
 
 # ---------- 8. 验证 ----------
-say "8/8 验证（含 pi 底座预热）"
+say "9/9 验证（含 pi 底座预热）"
 if [ "$NONINTERACTIVE" = "1" ] || true; then
   echo "  预热 pi 底座（首次运行会拉取技能包，可能较慢）..."
   if timeout 300 pi -p "回复两个字：就绪" >/dev/null 2>&1; then ok "pi 底座可用（第四级兜底就位）"
