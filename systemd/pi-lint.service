@@ -1,0 +1,11 @@
+[Unit]
+Description=Steel Will wiki lint (daily)
+After=network-online.target
+[Service]
+Type=oneshot
+WorkingDirectory=/root/pi-work
+Environment=HOME=/root
+Environment=PATH=/root/.local/bin:/root/.pi/agent/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/bash -c '/root/.pi/agent/bin/pi --print "调用 wiki_lint 工具对 wiki 做一次健康巡检，然后把发现的问题按严重度简要列出" </dev/null'
+TimeoutStartSec=1800
+User=root

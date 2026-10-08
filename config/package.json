@@ -1,0 +1,23 @@
+{
+  "name": "steel-will-pi-agent",
+  "version": "1.0.0",
+  "description": "钢铁意志·PI版 Agent 工程",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2",
+    "pi-mcp-adapter": "^2.10.0",
+    "vectra": "^0.15.0"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true,
+    "protobufjs@7.6.6": true,
+    "protobufjs@6.11.6": true,
+    "protobufjs@8.8.0": true
+  }
+}

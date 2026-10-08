@@ -1,0 +1,12 @@
+[Unit]
+Description=Steel Will Daily L1 Refinement (GLM 主 / DeepSeek 兜底)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/.pi/agent/bin
+ExecStart=/usr/bin/python3 /root/.pi/agent/bin/l1_watcher.py --refine-only
+User=root
+Environment=HOME=/root
+Environment=PYTHONUNBUFFERED=1
+TimeoutStartSec=3600

@@ -1,0 +1,7 @@
+[Unit]
+Description=钢铁意志 pi 每日自检
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/root/pi-work/healthcheck.sh

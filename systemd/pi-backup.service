@@ -1,0 +1,6 @@
+[Unit]
+Description=Backup XiaoXin memory and config
+[Service]
+Type=oneshot
+ExecStart=/opt/pi-backup/backup.sh
+User=root

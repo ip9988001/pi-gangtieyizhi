@@ -1,0 +1,9 @@
+[Unit]
+Description=Steel Will Pi-XinXin backup repo daily sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/root/pi-work/pi-xinxin-sync.sh
+TimeoutStartSec=1800

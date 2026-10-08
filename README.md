@@ -28,13 +28,17 @@ pi-Agent 是底座，本身**没有任何记忆能力** —— 每开一个新�
 
 一句话：**这个仓库是「引擎」，那个仓库是「这台装了引擎的车」。**
 
-## 一行外接（规划中，尚未实现）
+## 一行外接（已实现）
 
 ```bash
 git clone https://github.com/ip9988001/pi-gangtieyizhi.git ~/pi-gangtieyizhi && bash ~/pi-gangtieyizhi/attach.sh
 ```
 
-`attach.sh` 将完成：
+- `bash attach.sh` —— 交互式，会询问 key（**全部可以跳过**）
+- `bash attach.sh --yes` —— 全自动，key 从环境变量取
+- `GLM_API_KEY=xxx bash attach.sh` —— 预先给 key
+
+`attach.sh` 实际完成的 8 步：
 1. 把 `extensions/` 装进 `~/.pi/agent/extensions/`
 2. 把技能库装进 `~/.pi/agent/PI-技能库/` 与 `~/.agents/skills/`
 3. 把 `AGENTS.md` 宪法、`SYSTEM.md` 装上
@@ -42,23 +46,28 @@ git clone https://github.com/ip9988001/pi-gangtieyizhi.git ~/pi-gangtieyizhi && 
 5. 初始化空的 `memory/` 目录骨架（L1 / wiki / candidates / system）
 6. 装并启动 L1 Watcher
 
-## 当前状态
-
-**占位仓库** —— 仅本 README。框架内容待迁入。
-
-## 规划目录结构
+## 目录结构
 
 ```
 pi-gangtieyizhi/
-├── README.md
-├── attach.sh              # 一行外接脚本
+├── README.md              # 本文件
+├── ATTACH 说明.md          # 外接与配置说明
+├── KEYS.md                # 密钥清单与四级兜底规则
+├── DEPENDENCIES.md        # 依赖总清单（哪些由 pi 自带、哪些要装）
+├── attach.sh              # 一行外接脚本（8 步全自动）
 ├── extensions/            # 22 个启用的 steel-will-* 扩展
 ├── extensions-disabled/   # 15 个已停用扩展（保留可秒恢复）
-├── skills/                # PI-技能库
-├── agents-skills/         # 用户级技能
-├── constitution/          # AGENTS.md / SYSTEM.md / 0-AGENTS
-├── engine/                # bin/ services/ scripts/（L1 Watcher、向量化、检索）
-├── memory-template/       # 空记忆骨架 + 目录约定
-├── systemd/               # 服务与定时器单元
-└── docs/                  # 框架说明与复原清单
+├── skills/                # PI-技能库（33 个技能）
+├── constitution/          # AGENTS.md / SYSTEM.md / 0-AGENTS / protocols（16 份协议）/ goals-template
+├── engine/                # bin/（l1_watcher.py 等）services/ scripts/ aux/ pi-extensions/
+├── config/                # settings / l1_watcher.config.example / mcp-adapter / package.json
+├── memory-template/       # 空记忆骨架 + 协议文档
+└── systemd/               # 服务与定时器单元
 ```
+
+## 关键特性：零 key 也能跑
+
+提炼引擎是**四级容灾链**：`GLM → GLM(关思考) → DeepSeek → pi 底座驱动模型`。
+
+第四级调用 `pi -p`，**不需要任何外部 API key** —— 只要 pi 底座能跑，记忆提炼就能跑。
+所以本框架在完全裸的机器上、一个 key 都不配的情况下，也能全功能正常运行。

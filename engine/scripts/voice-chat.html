@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鑫鑫语音对话</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .header .shortcut-hint {
+            background: #f0f0f0;
+            padding: 8px 15px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .header .shortcut-hint kbd {
+            background: #333;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .status {
+            text-align: center;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.listening {
+            background: #fff3cd;
+            color: #856404;
+            animation: pulse 0.5s infinite;
+        }
+        
+        .status.speaking {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .chat-box {
+            height: 350px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+        }
+        
+        .message.user {
+            justify-content: flex-end;
+        }
+        
+        .message.assistant {
+            justify-content: flex-start;
+        }
+        
+        .message-content {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .message.user .message-content {
+            background: #007bff;
+            color: white;
+        }
+        
+        .message.assistant .message-content {
+            background: #e9ecef;
+            color: #333;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        #sendTextBtn {
+            background: #28a745;
+            color: white;
+            flex: 1;
+        }
+        
+        #clearBtn {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        #textInput {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        #textInput:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .mic-indicator {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .mic-indicator.active {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .mic-indicator .icon {
+            font-size: 48px;
+        }
+        
+        .mic-indicator .text {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .settings {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .settings-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .settings-row label {
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+        }
+        
+        .settings-row select, .settings-row input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎤 鑫鑫语音对话</h1>
+            <div class="shortcut-hint">
+                按住 <kbd>空格键</kbd> 说话，松开自动发送 | <kbd>Enter</kbd> 发送文字
+            </div>
+        </div>
+        
+        <div id="status" class="status ready">
+            ✅ 准备就绪 - 按住空格键说话
+        </div>
+        
+        <div id="micIndicator" class="mic-indicator">
+            <div class="icon">🎤</div>
+            <div class="text">按住空格键开始录音</div>
+        </div>
+        
+        <div id="chatBox" class="chat-box">
+            <!-- 消息会在这里显示 -->
+        </div>
+        
+        <div class="input-area">
+            <input type="text" id="textInput" placeholder="输入文字，按Enter发送...">
+            <button id="sendTextBtn" onclick="sendTextMessage()">发送</button>
+            <button id="clearBtn" onclick="clearChat()">清空</button>
+        </div>
+        
+        <div class="settings">
+            <div class="settings-row">
+                <label>语音：</label>
+                <select id="voiceSelect">
+                    <!-- 语音选项会在这里显示 -->
+                </select>
+                <label>语速：</label>
+                <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 语音识别
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;  // 启用中间结果
+        recognition.lang = 'zh-CN';
+        
+        // 语音合成
+        const synth = window.speechSynthesis;
+        let voices = [];
+        let isListening = false;
+        let spacePressed = false;
+        
+        // 初始化
+        function init() {
+            loadVoices();
+            synth.onvoiceschanged = loadVoices;
+            setupKeyboardShortcuts();
+            setupTextInput();
+        }
+        
+        // 加载语音
+        function loadVoices() {
+            voices = synth.getVoices();
+            const select = document.getElementById('voiceSelect');
+            select.innerHTML = '';
+            
+            const chineseVoices = voices.filter(v => v.lang.startsWith('zh'));
+            
+            chineseVoices.forEach(voice => {
+                const option = document.createElement('option');
+                option.value = voice.name;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                select.appendChild(option);
+            });
+        }
+        
+        // 设置键盘快捷键
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(e) {
+                // 空格键按下 - 开始录音
+                if (e.code === 'Space' && !spacePressed && !e.target.matches('input, textarea')) {
+                    e.preventDefault();
+                    spacePressed = true;
+                    startListening();
+                }
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                // 空格键松开 - 停止录音并发送
+                if (e.code === 'Space' && spacePressed) {
+                    e.preventDefault();
+                    spacePressed = false;
+                    stopListening();
+                }
+            });
+        }
+        
+        // 设置文字输入
+        function setupTextInput() {
+            const input = document.getElementById('textInput');
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendTextMessage();
+                }
+            });
+        }
+        
+        // 开始录音
+        function startListening() {
+            if (isListening) return;
+            
+            const status = document.getElementById('status');
+            const micIndicator = document.getElementById('micIndicator');
+            
+            status.className = 'status listening';
+            status.textContent = '🎤 正在听... 说完松开空格键';
+            micIndicator.classList.add('active');
+            micIndicator.querySelector('.text').textContent = '正在录音...';
+            
+            isListening = true;
+            recognition.start();
+        }
+        
+        // 停止录音
+        function stopListening() {
+            if (!isListening) return;
+            
+            const status = document.getElementById('status');
+            const micIndicator = document.getElementById('micIndicator');
+            
+            status.className = 'status ready';
+            status.textContent = '✅ 准备就绪 - 按住空格键说话';
+            micIndicator.classList.remove('active');
+            micIndicator.querySelector('.text').textContent = '按住空格键开始录音';
+            
+            isListening = false;
+            recognition.stop();
+        }
+        
+        // 识别结果
+        recognition.onresult = function(event) {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript;
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+            
+            // 如果有最终结果，发送消息
+            if (finalTranscript) {
+                addMessage('user', finalTranscript);
+                processMessage(finalTranscript);
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            const status = document.getElementById('status');
+            status.className = 'status error';
+            status.textContent = `❌ 错误: ${event.error}`;
+            
+            setTimeout(() => {
+                status.className = 'status ready';
+                status.textContent = '✅ 准备就绪 - 按住空格键说话';
+            }, 2000);
+        };
+        
+        recognition.onend = function() {
+            isListening = false;
+            const micIndicator = document.getElementById('micIndicator');
+            micIndicator.classList.remove('active');
+            micIndicator.querySelector('.text').textContent = '按住空格键开始录音';
+        };
+        
+        // 发送文字消息
+        function sendTextMessage() {
+            const input = document.getElementById('textInput');
+            const text = input.value.trim();
+            
+            if (text) {
+                addMessage('user', text);
+                processMessage(text);
+                input.value = '';
+            }
+        }
+        
+        // 处理消息（接入PI系统）
+        async function processMessage(text) {
+            const status = document.getElementById('status');
+            status.className = 'status speaking';
+            status.textContent = '🤔 思考中...';
+            
+            try {
+                // TODO: 这里将来接入PI-Agent API
+                // 暂时用模拟回复
+                const response = await getPIResponse(text);
+                addMessage('assistant', response);
+                speak(response);
+            } catch (error) {
+                addMessage('assistant', '抱歉，处理消息时出错了：' + error.message);
+            }
+        }
+        
+        // 获取PI回复（模拟，将来接入真实API）
+        async function getPIResponse(text) {
+            // 模拟延迟
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            const responses = {
+                '你好': '鑫鑫大哥好！我是鑫鑫，有什么可以帮你的？',
+                '你是谁': '我叫鑫鑫，是PI-Agent的驱动模型，鑫鑫大哥的搭档！',
+                '今天天气': '鑫鑫大哥，我现在还没有联网查天气的能力，但我可以帮你做其他事情！',
+                '帮我记': '好的鑫鑫大哥，你想记什么？告诉我就行！',
+                '你有什么能力': '我有50个skills！包括记忆系统、语义检索、文档处理、语音合成等等！',
+                '时间': '现在是' + new Date().toLocaleTimeString('zh-CN'),
+            };
+            
+            for (const key in responses) {
+                if (text.includes(key)) {
+                    return responses[key];
+                }
+            }
+            
+            return `鑫鑫大哥，我听到了你说"${text}"。这是个好问题！等我完全接入PI系统后，就能更好地回答你了！`;
+        }
+        
+        // 添加消息
+        function addMessage(role, content) {
+            const chatBox = document.getElementById('chatBox');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    ${role === 'user' ? '👤' : '🤖'} ${content}
+                </div>
+            `;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
+        // 语音播报
+        function speak(text) {
+            const status = document.getElementById('status');
+            status.className = 'status speaking';
+            status.textContent = '🔊 正在说话...';
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            const voiceSelect = document.getElementById('voiceSelect');
+            const selectedVoice = voices.find(v => v.name === voiceSelect.value);
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+            
+            utterance.rate = document.getElementById('rate').value;
+            utterance.pitch = 1;
+            
+            utterance.onend = function() {
+                status.className = 'status ready';
+                status.textContent = '✅ 准备就绪 - 按住空格键说话';
+            };
+            
+            synth.speak(utterance);
+        }
+        
+        // 清空聊天
+        function clearChat() {
+            document.getElementById('chatBox').innerHTML = '';
+        }
+        
+        // 初始化
+        init();
+    </script>
+</body>
+</html>

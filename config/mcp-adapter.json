@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "lean-ctx": {
+      "type": "stdio",
+      "command": "lean-ctx",
+      "lifecycle": "lazy",
+      "idleTimeout": 30
+    },
+    "scrapling": {
+      "type": "stdio",
+      "command": "/root/.local/bin/scrapling-mcp",
+      "lifecycle": "lazy",
+      "idleTimeout": 30
+    }
+  },
+  "settings": {
+    "toolPrefix": "server",
+    "idleTimeout": 10
+  },
+  "imports": [
+    "cursor",
+    "claude-code"
+  ]
+}

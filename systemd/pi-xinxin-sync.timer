@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily sync of steel will body to pi-xinxin repo
+
+[Timer]
+OnCalendar=*-*-* 04:50:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

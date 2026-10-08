@@ -1,0 +1,8 @@
+{
+  "glm_api_key": "",
+  "glm_base_url": "https://open.bigmodel.cn/api/paas/v4",
+  "glm_model": "glm-4.7",
+  "deepseek_api_key": "",
+  "deepseek_base_url": "https://api.deepseek.com/v1",
+  "deepseek_model": "deepseek-chat"
+}

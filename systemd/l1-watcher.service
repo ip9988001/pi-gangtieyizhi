@@ -1,0 +1,17 @@
+[Unit]
+Description=Steel Will L1 Watcher (session -> L1 记忆实时采集)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/.pi/agent/bin
+ExecStart=/usr/bin/python3 /root/.pi/agent/bin/l1_watcher.py
+Restart=always
+RestartSec=10
+User=root
+Environment=HOME=/root
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

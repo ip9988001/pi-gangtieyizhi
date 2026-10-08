@@ -1,0 +1,16 @@
+[Unit]
+Description=Pi Agent Telegram Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pi-tg
+ExecStart=/usr/bin/python3 /opt/pi-tg/bridge.py
+Restart=always
+RestartSec=5
+User=root
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

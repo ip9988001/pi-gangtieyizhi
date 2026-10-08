@@ -1,0 +1,10 @@
+[Unit]
+Description=钢铁意志 pi 每日自检定时器
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
