@@ -51,19 +51,57 @@ git clone https://github.com/ip9988001/pi-gangtieyizhi.git ~/pi-gangtieyizhi && 
 ```
 pi-gangtieyizhi/
 ├── README.md              # 本文件
-├── ATTACH 说明.md          # 外接与配置说明
-├── KEYS.md                # 密钥清单与四级兜底规则
-├── DEPENDENCIES.md        # 依赖总清单（哪些由 pi 自带、哪些要装）
-├── attach.sh              # 一行外接脚本（8 步全自动）
+├── KEYS.md                # 密钥清单、密钥汇总表与五级兜底规则
+├── DEPENDENCIES.md        # 依赖总清单（裸机假设）+ 官方/国内双下载源表
+├── attach.sh              # 一行外接脚本（9 步全自动）
+├── deps.sh                # 依赖扫描 / 自动安装 / 镜像源探测
 ├── extensions/            # 22 个启用的 steel-will-* 扩展
 ├── extensions-disabled/   # 15 个已停用扩展（保留可秒恢复）
 ├── skills/                # PI-技能库（33 个技能）
 ├── constitution/          # AGENTS.md / SYSTEM.md / 0-AGENTS / protocols（108 份协议文档）/ goals-template
 ├── engine/                # bin/（l1_watcher.py 等）services/ scripts/ aux/ pi-extensions/
-├── config/                # settings / l1_watcher.config.example / mcp-adapter / package.json
-├── memory-template/       # 空记忆骨架 + 协议文档
-└── systemd/               # 服务与定时器单元
+├── config/                # settings / l1_watcher.config.example / STEEL-WILL-KEYS.example / mcp-adapter / package.json
+└── systemd/               # 框架自身的服务与定时器（l1-watcher / l1-refine）
 ```
+
+## 外接脚本的 9 步
+
+| 步 | 动作 |
+|---|---|
+| 0 | 前置检查（pi / python3 / node） |
+| 1 | **依赖扫描 + 自动安装**（调 `deps.sh`：先 scan 列出缺什么，再 install；带 `--with-optional` 连技能依赖一起装） |
+| 2 | 备份已有配置到 `~/.pi/agent-attach-backup-<时间戳>` |
+| 3 | 安装框架文件（**同名不覆盖**，保护本机已有改动） |
+| 4 | 建立记忆骨架（补 108 份协议文档，**只补不覆盖**） |
+| 5 | 密钥汇总表 + key 配置 + **自动登记 pi 驱动模型 key** |
+| 6 | 注册 settings 与 MCP |
+| 7 | 补齐 npm 依赖 |
+| 8 | 安装并启动 systemd 服务与定时器 |
+| 9 | 验证（含 pi 底座预热自检 + 提炼线路自测） |
+
+## 依赖与镜像
+
+`deps.sh` 会先扫机器现状，再只装缺的：
+
+```bash
+bash deps.sh scan                     # 只扫描，不改系统
+bash deps.sh install                  # 装缺失核心依赖
+bash deps.sh install --with-optional  # 连技能依赖一起装
+bash deps.sh mirrors                  # 看本机选中的下载源
+```
+
+**每个生态都有官方 + 国内镜像两条路，自动探测连通性择优**：
+
+| 生态 | 官方 | 国内镜像 |
+|---|---|---|
+| PyPI | pypi.org | 清华 / 阿里云 / 腾讯云 |
+| npm | registry.npmjs.org | npmmirror / 腾讯云 |
+| apt | 发行版官方 | 清华 / 阿里 / 中科大 |
+| GitHub | github.com | ghfast.top / gh-proxy.com / ghproxy.net |
+| Node | nodejs.org | npmmirror.com/mirrors/node |
+
+识别到国内网络环境（时区 CST）会自动**镜像优先 + 延长超时**。
+包管理器自动识别：apt / dnf / yum / apk / pacman / zypper / brew。
 
 ## 关键特性：零 key 也能跑
 

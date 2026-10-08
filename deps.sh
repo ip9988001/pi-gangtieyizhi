@@ -205,8 +205,13 @@ pm_install(){ # $@ = 包名
     *) return 1 ;;
   esac
 }
-pip_install(){ python3 -m pip install --user --index-url "$PIP_SRC" --trusted-host "$(echo "$PIP_SRC" | sed -E 's#https?://([^/]+)/.*#\1#')" "$@" 2>/dev/null \
-              || python3 -m pip install --user -i "$PIP_SRC" "$@" ; }
+pip_install(){ # Debian12/Ubuntu23+ 有 externally-managed-environment，逐级降级
+  local host; host="$(echo "$PIP_SRC" | sed -E 's#https?://([^/]+)/.*#\1#')"
+  python3 -m pip install --user --index-url "$PIP_SRC" --trusted-host "$host" "$@" 2>/dev/null && return 0
+  python3 -m pip install --user --break-system-packages --index-url "$PIP_SRC" --trusted-host "$host" "$@" 2>/dev/null && return 0
+  python3 -m pip install --user --break-system-packages -i "$PIP_SRC" "$@" 2>/dev/null && return 0
+  return 1
+}
 
 install_all(){
   [ -z "$PM" ] && { wr "未识别的包管理器，请手工安装：${CMDS_REQUIRED}"; }

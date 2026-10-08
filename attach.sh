@@ -69,10 +69,10 @@ done
 
 # ---------- 2. 装框架文件 ----------
 say "3/9 安装框架文件"
-inst(){ # src dst
+inst(){ # src dst —— 用 src/. 语义，避免目标已存在时把源目录嵌套进去
   [ -e "$1" ] || return 0
-  mkdir -p "$(dirname "$2")"
-  cp -a "$1" "$2"
+  mkdir -p "$2"
+  cp -a "$1/." "$2/"
 }
 # 扩展：默认不覆盖已有的同名文件（保护本机改动）
 mkdir -p "$AG/extensions" "$AG/extensions-disabled"
@@ -218,15 +218,18 @@ echo "  引擎         : $([ -e "$AG/bin/l1_watcher.py" ] && echo OK || echo 缺
 echo "  记忆骨架     : $([ -d "$AG/memory/wiki" ] && echo OK || echo 缺失)"
 echo "  协议文档     : $(ls "$AG/memory/archive/protocols"/*.md 2>/dev/null | wc -l) 份"
 echo "  key 配置     : $([ -e "$CFG" ] && echo OK || echo 缺失)"
-echo "  密钥汇总表   : $([ -e "$KMD" ] && echo OK || echo 缺失)  $($PY -c "
-import re,sys
-try:
-    t=open('$KMD',encoding='utf-8').read()
-    d=dict(re.findall(r'^\s*([a-z_]+)\s*=\s*(.*)$',t,re.M))
-    g=bool(d.get('glm_api_key')); s2=bool(d.get('deepseek_api_key')); dr=bool(d.get('driver_api_key'))
-    print('GLM:%s DeepSeek:%s 驱动模型key:%s' % ('已配' if g else '未配','已配' if s2 else '未配','已登记' if dr else '未登记'))
-except Exception as e: print('读取失败')
-")"
+keystate(){
+  [ -e "$KMD" ] || { echo "缺失"; return; }
+  local g s2 dr
+  g=$(sed -n "s/^glm_api_key *= *//p" "$KMD" | head -1)
+  s2=$(sed -n "s/^deepseek_api_key *= *//p" "$KMD" | head -1)
+  dr=$(sed -n "s/^driver_api_key *= *//p" "$KMD" | head -1)
+  printf "GLM:%s DeepSeek:%s 驱动模型key:%s" \
+    "$([ -n "$g" ] && echo 已配 || echo 未配)" \
+    "$([ -n "$s2" ] && echo 已配 || echo 未配)" \
+    "$([ -n "$dr" ] && echo 已登记 || echo 未登记)"
+}
+echo "  密钥汇总表   : $([ -e "$KMD" ] && echo OK || echo 缺失)  $(keystate)"
 if need systemctl; then echo "  服务         : l1-watcher=$(systemctl is-active l1-watcher 2>/dev/null) / l1-refine.timer=$(systemctl is-enabled l1-refine.timer 2>/dev/null)"; fi
 echo
 echo "  语法自检："

@@ -1,8 +1,0 @@
-[Unit]
-Description=Daily wiki lint for XiaoXin
-[Timer]
-OnCalendar=*-*-* 05:00:00
-Persistent=true
-RandomizedDelaySec=900
-[Install]
-WantedBy=timers.target
