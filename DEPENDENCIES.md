@@ -84,3 +84,19 @@ pi 的托管安装会在 `~/.pi/agent/install/releases/<版本>/node_modules/` �
     ├── l1/  wiki/  wiki_candidates/pending/  agent/  candidates/
     ├── system/  goals/  stages/  reflections/  archive/protocols/
 ```
+
+## 七、第四级兜底（pi 底座驱动模型）的前置条件
+
+`call_llm_refine()` 的第四级走 `pi -p`，它需要：
+
+1. **`pi` 可执行文件在 PATH 上**，或存在于 `~/.pi/agent/bin/pi`
+2. **`node` 可用** —— pi 托管安装的 node 在 `$XDG_DATA_HOME/pi-node/current/bin`
+   **不在系统 PATH 上**。`_llm_via_pi()` 已自动补 PATH，无需人工干预。
+   （这是实测踩到的坑：node 不在 PATH 时 `pi` 会以 127 退出，报
+   `/usr/bin/env: 'node': No such file or directory`）
+3. **pi 底座自身可用** —— 首次 `pi -p` 会拉取 settings.json 里声明的技能包
+   （anthropics/skills、badlogic/pi-skills），需要网络。`attach.sh` 第 8 步会做一次预热自检。
+4. **pi 已配好基础 provider** —— 第四级用的是 pi 当前 `settings.json` 的
+   `defaultProvider` / `defaultModel`。底座没配 provider 时这一级也无效。
+
+> 实测：本机（provider=deepseek）第四级 `pi -p` 一次调用 **3.0 秒**返回，可用。
