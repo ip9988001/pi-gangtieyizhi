@@ -138,11 +138,18 @@ def sync_driver_key(force=False, quiet=True):
         st = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
         provider = st.get("defaultProvider") or ""
         model = st.get("defaultModel") or ""
+    except FileNotFoundError:
+        if not quiet:
+            print("  [密钥表] pi 底座还没配置过 provider（未找到 settings.json），跳过自动登记")
     except Exception as e:
         if not quiet:
             print(f"  [密钥表] 读 settings.json 失败: {e}")
     try:
         au = json.loads(AUTH_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        if not quiet:
+            print("  [密钥表] pi 底座还没登录过任何 provider（未找到 auth.json），跳过自动登记")
+        au = {}
     except Exception as e:
         if not quiet:
             print(f"  [密钥表] 读 auth.json 失败: {e}")
