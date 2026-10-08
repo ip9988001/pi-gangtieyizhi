@@ -59,14 +59,24 @@ M_GITHUB_CN3="https://ghproxy.net"
 M_NODE_CN1="https://npmmirror.com/mirrors/node"
 M_PW_CN1="https://npmmirror.com/mirrors/playwright"
 
-probe(){ # $1=url  $2=超时秒  连通且非 4xx/5xx 视为可用
+probe(){ # $1=url  $2=超时秒  连通且非 4xx/5xx 视为可用；失败重试一次
   command -v curl >/dev/null 2>&1 || return 1
-  local code
-  code=$(curl -s -o /dev/null -w '%{http_code}' -m "${2:-6}" -L "$1" 2>/dev/null) || return 1
-  [ -n "$code" ] && [ "$code" -lt 500 ] 2>/dev/null
+  local code i
+  for i in 1 2; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -m "${2:-8}" -L "$1" 2>/dev/null) || code=""
+    [ -n "$code" ] && [ "$code" -lt 500 ] 2>/dev/null && return 0
+    sleep 1
+  done
+  return 1
 }
-pick(){ # 依次试，返回第一个可用的
-  for u in "$@"; do [ -n "$u" ] && probe "$u" 5 && { echo "$u"; return 0; }; done
+IN_CN=0
+case "$(cat /etc/timezone 2>/dev/null)$(date +%Z 2>/dev/null)" in *Shanghai*|*CST*|*Asia/China*) IN_CN=1;; esac
+pick(){ # 依次试，返回第一个可用的（国内环境给镜像更长超时）
+  for u in "$@"; do
+    [ -z "$u" ] && continue
+    if [ "$IN_CN" = 1 ]; then probe "$u" 10 && { echo "$u"; return 0; }
+    else probe "$u" 6 && { echo "$u"; return 0; }; fi
+  done
   return 1
 }
 resolve_mirrors(){
@@ -75,6 +85,7 @@ resolve_mirrors(){
   NPM_SRC="$(pick "$M_NPM_CN1" "$M_NPM_CN2" "$M_NPM_OFFICIAL" || echo "$M_NPM_OFFICIAL")"
   GH_PROXY="$(pick "$M_GITHUB_CN1" "$M_GITHUB_CN2" "$M_GITHUB_CN3" || echo "")"
   APT_CN="$(pick "$M_APT_CN1" "$M_APT_CN2" "$M_APT_CN3" || echo "")"
+  [ "$IN_CN" = 1 ] && echo "  ${D}（检测到国内网络环境，镜像优先 + 更长超时）${N}"
   echo "  pip   : $PIP_SRC"
   echo "  npm   : $NPM_SRC"
   echo "  apt   : ${APT_CN:-（保持系统原配置）}"
