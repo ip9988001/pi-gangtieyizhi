@@ -1,8 +1,0 @@
-[Unit]
-Description=Weekly memory eval for XiaoXin
-[Timer]
-OnCalendar=Sun *-*-* 03:00:00
-Persistent=true
-RandomizedDelaySec=1800
-[Install]
-WantedBy=timers.target

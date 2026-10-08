@@ -1,7 +1,0 @@
-[Unit]
-Description=Steel Will self-backup sync (mirror daily / full weekly) to 103
-After=network-online.target
-[Service]
-Type=oneshot
-ExecStart=/root/pi-work/pi-self-backup.sh
-TimeoutStartSec=3600

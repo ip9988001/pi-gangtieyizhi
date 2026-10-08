@@ -1,7 +1,0 @@
-[Unit]
-Description=Run DeepSeek balance sentinel every 20 minutes
-[Timer]
-OnBootSec=2min
-OnUnitActiveSec=20min
-[Install]
-WantedBy=timers.target

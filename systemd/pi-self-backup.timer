@@ -1,8 +1,0 @@
-[Unit]
-Description=Daily 04:25 self-backup sync
-[Timer]
-OnCalendar=*-*-* 04:25:00
-Persistent=true
-RandomizedDelaySec=120
-[Install]
-WantedBy=timers.target

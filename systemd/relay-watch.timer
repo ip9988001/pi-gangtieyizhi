@@ -1,8 +1,0 @@
-[Unit]
-Description=每 30 秒检查客户接入
-[Timer]
-OnBootSec=30
-OnUnitActiveSec=30
-AccuracySec=3s
-[Install]
-WantedBy=timers.target

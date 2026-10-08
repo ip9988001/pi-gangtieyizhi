@@ -1,5 +1,0 @@
-[Unit]
-Description=DeepSeek balance sentinel (read-only, zero token cost)
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/python3 /root/pi-work/ds-balance.py

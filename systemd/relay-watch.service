@@ -1,5 +1,0 @@
-[Unit]
-Description=客户接入看门狗（30001-30020 隧道监控）
-[Service]
-Type=oneshot
-ExecStart=/root/pi-work/relay-watch.sh

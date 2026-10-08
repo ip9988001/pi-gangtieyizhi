@@ -1,8 +1,0 @@
-[Unit]
-Description=Steel Will weekly memory retrieval evaluation
-After=network-online.target
-[Service]
-Type=oneshot
-ExecStart=/opt/pi-eval/run_eval.sh
-User=root
-TimeoutStartSec=3600
