@@ -39,6 +39,147 @@ TICK = 0.2
 # ============================================================
 _CFG_FILE = HOME / ".pi" / "agent" / "l1_watcher.config.json"
 
+# ============================================================
+# 钢铁意志外挂系统 · 密钥汇总表（唯一密钥来源）
+#   ~/.pi/agent/STEEL-WILL-KEYS.md
+#   优先级：环境变量 > 本表 > l1_watcher.config.json > pi 驱动模型兜底
+# ============================================================
+KEYS_MD_FILE  = HOME / ".pi" / "agent" / "STEEL-WILL-KEYS.md"
+AUTH_FILE     = HOME / ".pi" / "agent" / "auth.json"
+SETTINGS_FILE = HOME / ".pi" / "agent" / "settings.json"
+
+# provider -> OpenAI 兼容 base_url（用于第四级「驱动模型密钥直连」）
+PROVIDER_BASE = {
+    "deepseek":   "https://api.deepseek.com/v1",
+    "zhipu":      "https://open.bigmodel.cn/api/paas/v4",
+    "glm":        "https://open.bigmodel.cn/api/paas/v4",
+    "openai":     "https://api.openai.com/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
+    "moonshot":   "https://api.moonshot.cn/v1",
+    "siliconflow":"https://api.siliconflow.cn/v1",
+    "google":     "https://generativelanguage.googleapis.com/v1beta/openai",
+    "xai":        "https://api.x.ai/v1",
+    "groq":       "https://api.groq.com/openai/v1",
+    "mistral":    "https://api.mistral.ai/v1",
+}
+
+
+# provider -> 直连 HTTP 时可用的真实模型名（pi 里的别名不一定被原厂 API 接受）
+PROVIDER_DEFAULT_MODEL = {
+    "deepseek":    "deepseek-chat",
+    "zhipu":       "glm-4.7",
+    "glm":         "glm-4.7",
+    "openai":      "gpt-4o-mini",
+    "openrouter":  "openai/gpt-4o-mini",
+    "moonshot":    "moonshot-v1-8k",
+    "siliconflow": "Qwen/Qwen2.5-7B-Instruct",
+    "google":      "gemini-2.0-flash",
+    "xai":         "grok-3-mini",
+    "groq":        "llama-3.3-70b-versatile",
+    "mistral":     "mistral-small-latest",
+}
+
+
+def _parse_keys_md(path):
+    """解析 STEEL-WILL-KEYS.md 里 ```keys 围栏中的 key = value 行。"""
+    out = {}
+    try:
+        inside = False
+        for line in path.read_text(encoding="utf-8").splitlines():
+            st = line.strip()
+            if st.startswith("```"):
+                lang = st.strip("`").strip().lower()
+                inside = lang in ("keys", "ini", "env", "toml")
+                continue
+            if inside and "=" in st and not st.startswith("#"):
+                k, _, v = st.partition("=")
+                out[k.strip()] = v.strip()
+    except Exception:
+        pass
+    return out
+
+
+def _write_keys_md_auto(values):
+    """把自动区（AUTO-START/END 之间）改写为给定值。"""
+    try:
+        txt = KEYS_MD_FILE.read_text(encoding="utf-8")
+    except Exception:
+        return False
+    if "<!-- AUTO-START -->" not in txt or "<!-- AUTO-END -->" not in txt:
+        return False
+    head, rest = txt.split("<!-- AUTO-START -->", 1)
+    _, tail = rest.split("<!-- AUTO-END -->", 1)
+    body = ["```keys"]
+    for k in ("driver_provider", "driver_model", "driver_http_model", "driver_base_url",
+              "driver_api_key", "driver_key_type", "auto_filled_at"):
+        body.append(f"{k} = {values.get(k, '')}")
+    body.append("```")
+    new = head + "<!-- AUTO-START -->\n" + "\n".join(body) + "\n<!-- AUTO-END -->" + tail
+    KEYS_MD_FILE.write_text(new, encoding="utf-8")
+    try:
+        os.chmod(KEYS_MD_FILE, 0o600)
+    except Exception:
+        pass
+    return True
+
+
+def sync_driver_key(force=False, quiet=True):
+    """把 pi 底座当前驱动模型的 key 抄进钢铁意志密钥汇总表第一区。
+
+    这是「框架自动给自己配一个兜底 key」的机制：读 pi 的 settings.json 拿
+    provider/model，读 auth.json 拿该 provider 的 key，写进本表第一区。
+    pi 换了 provider/key，下次运行自动刷新。返回 True 表示第一区可用。
+    """
+    cur = _parse_keys_md(KEYS_MD_FILE)
+    if cur.get("driver_api_key") and not force:
+        return True
+    provider = model = key = base = ""
+    try:
+        st = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        provider = st.get("defaultProvider") or ""
+        model = st.get("defaultModel") or ""
+    except Exception as e:
+        if not quiet:
+            print(f"  [密钥表] 读 settings.json 失败: {e}")
+    try:
+        au = json.loads(AUTH_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        if not quiet:
+            print(f"  [密钥表] 读 auth.json 失败: {e}")
+        au = {}
+    ent = au.get(provider) if isinstance(au.get(provider), dict) else None
+    if ent:
+        key = ent.get("key") or ent.get("apiKey") or ent.get("token") or ""
+        base = ent.get("baseUrl") or ent.get("base_url") or ""
+    if not key:  # provider 没配 key 时，退取任意一个可用的
+        for p, e in au.items():
+            if isinstance(e, dict) and (e.get("key") or e.get("apiKey")):
+                provider = p
+                key = e.get("key") or e.get("apiKey")
+                base = e.get("baseUrl") or ""
+                break
+    base = base or PROVIDER_BASE.get(provider, "")
+    if not key or not base:
+        if not quiet:
+            print(f"  [密钥表] pi 驱动模型无可用 key/base_url（provider={provider}），跳过自动登记")
+        return False
+    ok = _write_keys_md_auto({
+        "driver_provider": provider,
+        "driver_model": model,
+        "driver_http_model": cur.get("driver_http_model", ""),
+        "driver_base_url": base,
+        "driver_api_key": key,
+        "driver_key_type": "api_key",
+        "auto_filled_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    })
+    if not quiet:
+        print(f"  [密钥表] 已自动登记 pi 驱动模型密钥: {provider} / {model} -> 第一区")
+    globals()["_KEYS_MD"] = _parse_keys_md(KEYS_MD_FILE)
+    return ok
+
+
+_KEYS_MD = _parse_keys_md(KEYS_MD_FILE)
+
 
 def _load_cfg():
     try:
@@ -51,13 +192,34 @@ def _load_cfg():
 
 _CFG = _load_cfg()
 
-GLM_API_KEY  = os.environ.get("GLM_API_KEY")  or _CFG.get("glm_api_key")  or ""
-GLM_BASE_URL = os.environ.get("GLM_BASE_URL") or _CFG.get("glm_base_url") or "https://open.bigmodel.cn/api/paas/v4"
-GLM_MODEL    = os.environ.get("GLM_MODEL")    or _CFG.get("glm_model")    or "glm-4.7"
+def _pick(env, mdkey, jskey, default=""):
+    """取值优先级：环境变量 > STEEL-WILL-KEYS.md > l1_watcher.config.json > 默认"""
+    return os.environ.get(env) or _KEYS_MD.get(mdkey) or _CFG.get(jskey) or default
 
-DS_API_KEY   = os.environ.get("DEEPSEEK_API_KEY")   or _CFG.get("deepseek_api_key")   or ""
-DS_BASE_URL  = os.environ.get("DEEPSEEK_BASE_URL")  or _CFG.get("deepseek_base_url")  or "https://api.deepseek.com/v1"
-DS_MODEL     = os.environ.get("DEEPSEEK_MODEL")     or _CFG.get("deepseek_model")     or "deepseek-chat"
+
+GLM_API_KEY  = _pick("GLM_API_KEY",  "glm_api_key",  "glm_api_key")
+GLM_BASE_URL = _pick("GLM_BASE_URL", "glm_base_url", "glm_base_url", "https://open.bigmodel.cn/api/paas/v4")
+GLM_MODEL    = _pick("GLM_MODEL",    "glm_model",    "glm_model",    "glm-4.7")
+
+DS_API_KEY   = _pick("DEEPSEEK_API_KEY",  "deepseek_api_key",  "deepseek_api_key")
+DS_BASE_URL  = _pick("DEEPSEEK_BASE_URL", "deepseek_base_url", "deepseek_base_url", "https://api.deepseek.com/v1")
+DS_MODEL     = _pick("DEEPSEEK_MODEL",    "deepseek_model",    "deepseek_model",    "deepseek-chat")
+
+# 第四级：pi 底座驱动模型（密钥由第一区自动登记）
+DRIVER_API_KEY  = os.environ.get("STEEL_WILL_DRIVER_API_KEY")  or _KEYS_MD.get("driver_api_key")  or ""
+DRIVER_BASE_URL = os.environ.get("STEEL_WILL_DRIVER_BASE_URL") or _KEYS_MD.get("driver_base_url") or ""
+DRIVER_MODEL    = os.environ.get("STEEL_WILL_DRIVER_MODEL")    or _KEYS_MD.get("driver_model")    or ""
+DRIVER_PROVIDER = _KEYS_MD.get("driver_provider") or ""
+DRIVER_HTTP_MODEL = _KEYS_MD.get("driver_http_model") or ""
+
+# 第二区两项都空 -> 自动从 pi 底座登记驱动模型密钥
+if not GLM_API_KEY and not DS_API_KEY and not DRIVER_API_KEY:
+    sync_driver_key(quiet=False)
+    DRIVER_API_KEY  = _KEYS_MD.get("driver_api_key")  or ""
+    DRIVER_BASE_URL = _KEYS_MD.get("driver_base_url") or ""
+    DRIVER_MODEL    = _KEYS_MD.get("driver_model")    or ""
+    DRIVER_PROVIDER = _KEYS_MD.get("driver_provider") or ""
+    DRIVER_HTTP_MODEL = _KEYS_MD.get("driver_http_model") or ""
 
 # ============================================================
 # 精炼分批参数（依据 GLM-4.7 官方规格 + 本机实测）
@@ -193,12 +355,13 @@ def _llm_via_pi(messages, timeout=600, provider=None, model=None):
 
 
 def call_llm_refine(messages, max_tokens=8192, temperature=0.6, label="精炼", timeout=600):
-    """四级容灾链：
+    """五级容灾链：
         ① GLM（思考开启，质量优先）
         ② GLM（思考关闭，防推理把 max_tokens 吃光导致正文为空）
         ③ DeepSeek
-        ④ pi 底座自身驱动模型（pi -p，不需要任何外部 key）
-    四级全失败返回空串。
+        ④ pi 驱动模型密钥直连（密钥自动从 pi 底座登记进密钥汇总表）
+        ⑤ pi 底座进程（pi -p，终极兜底，不需要任何外部 key）
+    五级全失败返回空串。
     """
     errors = []
 
@@ -242,7 +405,43 @@ def call_llm_refine(messages, max_tokens=8192, temperature=0.6, label="精炼", 
     else:
         errors.append("DeepSeek 未配置密钥（兜底不可用）")
 
-    # ---- 第四级：pi 底座自身驱动模型（无需任何外部 key）----
+    # ---- 第四级：pi 驱动模型密钥直连（第一区自动登记的 key）----
+    if DRIVER_API_KEY and DRIVER_BASE_URL:
+        # pi 里的模型别名（如 deepseek-flash）原厂 API 不一定认，所以按顺序试：
+        # 已记录的可用名 > pi 声明名 > provider 标准名
+        cands = []
+        for c in (DRIVER_HTTP_MODEL, DRIVER_MODEL, PROVIDER_DEFAULT_MODEL.get(DRIVER_PROVIDER, "")):
+            if c and c not in cands:
+                cands.append(c)
+        if not cands:
+            cands = ["default"]
+        for mi, mname in enumerate(cands, 1):
+            try:
+                print(f"  [{label}] 第四级 pi驱动模型密钥直连 "
+                      f"({DRIVER_PROVIDER}/{mname}) 尝试{mi}/{len(cands)} ...")
+                out, fin, rt = _llm_http(DRIVER_BASE_URL, DRIVER_API_KEY, mname,
+                                         messages, max_tokens, temperature, timeout)
+                if out.strip():
+                    print(f"  [{label}] OK pi驱动模型直连成功（{len(out)} 字符 / model={mname}）")
+                    if mname != DRIVER_HTTP_MODEL:   # 记住可用的模型名，下次直连一次到位
+                        try:
+                            globals()["DRIVER_HTTP_MODEL"] = mname
+                            vals = _parse_keys_md(KEYS_MD_FILE)
+                            vals["driver_http_model"] = mname
+                            _write_keys_md_auto(vals)
+                            globals()["_KEYS_MD"] = _parse_keys_md(KEYS_MD_FILE)
+                            print(f"  [{label}] 已记住可用模型名 {mname} -> 密钥汇总表第一区")
+                        except Exception as e2:
+                            print(f"  [{label}] 回写模型名失败（不影响本次）: {e2}")
+                    return out
+                errors.append(f"直连 {mname} 空正文(finish={fin})")
+            except Exception as e:
+                errors.append(f"直连 {mname} {type(e).__name__}: {e}")
+                print(f"  [{label}] WARN 直连 {mname} 失败: {type(e).__name__}: {e}")
+    else:
+        errors.append("pi驱动模型密钥未登记")
+
+    # ---- 第五级：pi 底座进程（终极兜底，无需任何 key）----
     try:
         print(f"  [{label}] 终极兜底 pi 底座驱动模型（pi -p）...")
         out = _llm_via_pi(messages, timeout=timeout)
@@ -254,7 +453,7 @@ def call_llm_refine(messages, max_tokens=8192, temperature=0.6, label="精炼", 
         errors.append(f"pi 底座 {type(e).__name__}: {e}")
         print(f"  [{label}] WARN pi 底座兜底失败: {type(e).__name__}: {e}")
 
-    print(f"  [{label}] FAIL 四级线路均失败: {'; '.join(errors)}")
+    print(f"  [{label}] FAIL 五级线路均失败: {'; '.join(errors)}")
     return ""
 
 
@@ -1234,11 +1433,22 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--once", action="store_true", help="单次扫描后退出")
     p.add_argument("--refine-only", action="store_true", help="仅执行精炼，不监控")
+    p.add_argument("--sync-key", action="store_true", help="把 pi 驱动模型的 key 同步进密钥汇总表后退出")
     p.add_argument("--interval", type=float, default=TICK, help=f"事件循环间隔秒（默认 {TICK}s）")
     a = p.parse_args()
 
     L1_DIR.mkdir(parents=True, exist_ok=True)
     SYSTEM_DIR.mkdir(parents=True, exist_ok=True)
+
+    # === 密钥汇总表同步（--sync-key）：把 pi 驱动模型的 key 登记进第一区 ===
+    if a.sync_key:
+        ok = sync_driver_key(force=True, quiet=False)
+        print(f"[密钥表] {'同步完成' if ok else '同步失败：pi 底座无可用驱动模型 key'}")
+        print(f"[密钥表] {KEYS_MD_FILE}")
+        for k in ("driver_provider", "driver_model", "driver_http_model", "driver_base_url", "auto_filled_at"):
+            print(f"  {k} = {_KEYS_MD.get(k, '')}")
+        print(f"  driver_api_key = {'已登记(' + str(len(_KEYS_MD.get('driver_api_key',''))) + ' 字符)' if _KEYS_MD.get('driver_api_key') else '未登记'}")
+        return
 
     # === 每日精炼（仅一次） ===
     run_daily_refinement()

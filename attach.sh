@@ -136,6 +136,21 @@ print(f"[✓] 配置已写入 {p}（600）  GLM:{'已配' if g else '未配'}  D
 print("    兜底链: " + ("GLM → DeepSeek → pi 底座" if g and s else ("GLM → pi 底座" if g else ("DeepSeek → pi 底座" if s else "pi 底座驱动模型（四级兜底，无需任何 key）"))))
 PY
 
+# ---- 密钥汇总表（钢铁意志唯一的密钥来源）----
+KMD="$AG/STEEL-WILL-KEYS.md"
+if [ ! -e "$KMD" ]; then
+  cp -f "$SRC/config/STEEL-WILL-KEYS.example.md" "$KMD" 2>/dev/null
+  ok "密钥汇总表已创建: $KMD"
+else ok "密钥汇总表已存在，保留原内容"; fi
+chmod 600 "$KMD" 2>/dev/null
+echo "  密钥汇总表是第一顺位来源；第二区留空时，自动从 pi 底座抄驱动模型的 key 进来。"
+
+# ---- 自动登记 pi 驱动模型的 key（框架自动给自己配兜底 key）----
+if [ -e "$AG/bin/l1_watcher.py" ]; then
+  echo "  正在从 pi 底座读取驱动模型 key ..."
+  $PY "$AG/bin/l1_watcher.py" --sync-key 2>&1 | sed 's/^/    /'
+fi
+
 # ---------- 5. settings / MCP ----------
 say "5/8 注册 settings 与 MCP"
 $PY - "$AG/settings.json" "$SRC/config" <<'PY'
@@ -194,6 +209,15 @@ echo "  引擎         : $([ -e "$AG/bin/l1_watcher.py" ] && echo OK || echo 缺
 echo "  记忆骨架     : $([ -d "$AG/memory/wiki" ] && echo OK || echo 缺失)"
 echo "  协议文档     : $(ls "$AG/memory/archive/protocols"/*.md 2>/dev/null | wc -l) 份"
 echo "  key 配置     : $([ -e "$CFG" ] && echo OK || echo 缺失)"
+echo "  密钥汇总表   : $([ -e "$KMD" ] && echo OK || echo 缺失)  $($PY -c "
+import re,sys
+try:
+    t=open('$KMD',encoding='utf-8').read()
+    d=dict(re.findall(r'^\s*([a-z_]+)\s*=\s*(.*)$',t,re.M))
+    g=bool(d.get('glm_api_key')); s2=bool(d.get('deepseek_api_key')); dr=bool(d.get('driver_api_key'))
+    print('GLM:%s DeepSeek:%s 驱动模型key:%s' % ('已配' if g else '未配','已配' if s2 else '未配','已登记' if dr else '未登记'))
+except Exception as e: print('读取失败')
+")"
 if need systemctl; then echo "  服务         : l1-watcher=$(systemctl is-active l1-watcher 2>/dev/null) / l1-refine.timer=$(systemctl is-enabled l1-refine.timer 2>/dev/null)"; fi
 echo
 echo "  语法自检："
@@ -217,7 +241,8 @@ cat <<'DONE'
  外接完成。
    · 会话采集已常驻（l1-watcher）
    · 记忆提炼每日 04:00 自动跑（l1-refine.timer），四级容灾
-   · 没配任何 key 时，自动用 pi 底座当前配置的驱动模型兜底
+   · 没配任何 key 时：自动把 pi 驱动模型的 key 登记进密钥汇总表并用它直连
+   · 连 pi 的 key 都不可用时，再降级为调用 pi 进程本身（pi -p）
    · 配置变更后：systemctl restart l1-watcher
  详细说明见 KEYS.md / DEPENDENCIES.md / README.md
 ============================================================
