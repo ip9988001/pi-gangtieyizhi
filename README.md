@@ -28,23 +28,39 @@ pi-Agent 是底座，本身**没有任何记忆能力** —— 每开一个新�
 
 一句话：**这个仓库是「引擎」，那个仓库是「这台装了引擎的车」。**
 
-## 一行外接（已实现）
+## 一行外接（已在全新机器实测）
+
+前提只有一条：机器上已有 **pi 底座**（`pi --version` 能跑）。没有就先装：
 
 ```bash
-git clone https://github.com/ip9988001/pi-gangtieyizhi.git ~/pi-gangtieyizhi && bash ~/pi-gangtieyizhi/attach.sh
+curl -fsSL https://pi.dev/install.sh | sh   # 装 pi 底座，约 11 秒
+export PATH="$HOME/.pi/agent/bin:$PATH"     # 装完按提示执行这句
+```
+
+然后一行外接：
+
+```bash
+git clone https://github.com/ip9988001/pi-gangtieyizhi.git ~/pi-gangtieyizhi && bash ~/pi-gangtieyizhi/attach.sh --yes
 ```
 
 - `bash attach.sh` —— 交互式，会询问 key（**全部可以跳过**）
 - `bash attach.sh --yes` —— 全自动，key 从环境变量取
 - `GLM_API_KEY=xxx bash attach.sh` —— 预先给 key
 
-`attach.sh` 实际完成的 8 步：
-1. 把 `extensions/` 装进 `~/.pi/agent/extensions/`
-2. 把技能库装进 `~/.pi/agent/PI-技能库/` 与 `~/.agents/skills/`
-3. 把 `AGENTS.md` 宪法、`SYSTEM.md` 装上
-4. 注册 MCP 服务器与 settings 项
-5. 初始化空的 `memory/` 目录骨架（L1 / wiki / candidates / system）
-6. 装并启动 L1 Watcher
+`attach.sh` 实际完成的 9 步（零 key 机器实测 2 分 10 秒跑完，exit=0）：
+
+| 步骤 | 做什么 |
+|---|---|
+| 0/9 | 前置检查：pi 底座 / python3 / node + **模型可用性预检**（没配模型会提前给出修法） |
+| 1/9 | 调 `deps.sh` 扫描依赖并按发行版自动安装（官方源失败自动切国内源） |
+| 2/9 | 备份机器上已有的 `AGENTS.md` / `settings.json` / 配置 |
+| 3/9 | 装框架文件：扩展、技能库、宪法、引擎、约束层（**已存在的同名文件不覆盖**） |
+| 4/9 | 建记忆骨架（L1 / wiki / candidates / system / protocols），补入 108 份协议文档 |
+| 5/9 | 配置 key（可全跳过）+ 创建密钥汇总表 + **自动把 pi 驱动模型的 key 登记进去** |
+| 6/9 | 注册 `settings.json`（packages / extensions）与 MCP |
+| 7/9 | 补齐 npm 依赖（`@xenova/transformers` / `vectra`） |
+| 8/9 | 装 systemd 单元（l1-watcher 常驻 + l1-refine.timer 每日 04:00）；非 systemd 环境自动跳过 |
+| 9/9 | 验证 + 预热 pi 底座 + **真实调用一次提炼线路**，失败时打印可执行的修复步骤 |
 
 ## 目录结构
 
